@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Ticket de Venta</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin: 0;
+            padding: 5px;
+            width: 80mm;
+            background: white;
+        }
+        
+        .ticket {
+            text-align: center;
+            line-height: 1.2;
+        }
+        
+        .header {
+            border-bottom: 1px dashed #000;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .company-name {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+        
+        .company-info {
+            font-size: 10px;
+            margin-bottom: 2px;
+        }
+        
+        .invoice-info {
+            text-align: left;
+            margin: 10px 0;
+            font-size: 11px;
+        }
+        
+        .items-table {
+            width: 100%;
+            font-size: 10px;
+            margin: 10px 0;
+        }
+        
+        .items-table th,
+        .items-table td {
+            text-align: left;
+            padding: 2px 0;
+        }
+        
+        .items-table th {
+            border-bottom: 1px dashed #000;
+            font-weight: bold;
+        }
+        
+        .item-name {
+            width: 60%;
+        }
+        
+        .item-qty {
+            width: 15%;
+            text-align: center;
+        }
+        
+        .item-price {
+            width: 25%;
+            text-align: right;
+        }
+        
+        .totals {
+            border-top: 1px dashed #000;
+            padding-top: 10px;
+            margin-top: 10px;
+            text-align: right;
+            font-size: 11px;
+        }
+        
+        .total-line {
+            display: flex;
+            justify-content: space-between;
+            margin: 3px 0;
+        }
+        
+        .grand-total {
+            font-weight: bold;
+            font-size: 14px;
+            border-top: 1px solid #000;
+            padding-top: 5px;
+            margin-top: 5px;
+        }
+        
+        .payment-info {
+            margin: 10px 0;
+            text-align: left;
+            font-size: 11px;
+        }
+        
+        .footer {
+            border-top: 1px dashed #000;
+            padding-top: 10px;
+            margin-top: 15px;
+            text-align: center;
+            font-size: 10px;
+        }
+        
+        .qr-code {
+            margin: 10px 0;
+            text-align: center;
+        }
+        
+        .fiscal-info {
+            font-size: 9px;
+            margin: 5px 0;
+            text-align: center;
+        }
+        
+        @media print {
+            body { margin: 0; }
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="ticket">
+        <!-- Encabezado -->
+        <div class="header">
+            {{#company_logo}}
+            <div style="margin-bottom: 10px;">
+                <img src="{{company_logo}}" alt="Logo" style="max-width: 60mm; height: auto;">
+            </div>
+            {{/company_logo}}
+            
+            <div class="company-name">{{company_name}}</div>
+            {{#company_commercial_name}}
+            <div class="company-info">{{company_commercial_name}}</div>
+            {{/company_commercial_name}}
+            
+            <div class="company-info">{{company_address}}</div>
+            <div class="company-info">{{company_city}}, {{company_country}}</div>
+            <div class="company-info">Tel: {{company_phone}}</div>
+            <div class="company-info">{{company_email}}</div>
+            
+            <!-- Información fiscal -->
+            <div class="fiscal-info">
+                NIT: {{company_nit}} | NRC: {{company_nrc}}
+            </div>
+            
+            {{#header_message}}
+            <div class="company-info" style="margin-top: 5px; font-style: italic;">
+                {{header_message}}
+            </div>
+            {{/header_message}}
+        </div>
+        
+        <!-- Información de la factura -->
+        <div class="invoice-info">
+            <strong>COMPROBANTE DE VENTA</strong><br>
+            {{#invoice_type_name}}
+            Tipo: {{invoice_type_name}}<br>
+            {{/invoice_type_name}}
+            No: {{invoice_number}}<br>
+            {{#fiscal_number}}
+            DTE: {{fiscal_number}}<br>
+            {{/fiscal_number}}
+            Fecha: {{issue_date}}<br>
+            Hora: {{issue_time}}<br>
+            Cajero: {{cashier_name}}<br>
+            <br>
+            <strong>CLIENTE:</strong><br>
+            {{customer_name}}<br>
+            {{#customer_document}}
+            {{customer_document_type}}: {{customer_document}}<br>
+            {{/customer_document}}
+            {{#customer_nit}}
+            NIT: {{customer_nit}}<br>
+            {{/customer_nit}}
+            {{#customer_address}}
+            {{customer_address}}<br>
+            {{/customer_address}}
+        </div>
+        
+        <!-- Items -->
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th class="item-name">PRODUCTO</th>
+                    <th class="item-qty">CANT</th>
+                    <th class="item-price">TOTAL</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#items}}
+                <tr>
+                    <td class="item-name">
+                        {{product_name}}<br>
+                        <small>{{product_code}} - ${{unit_price}}</small>
+                        {{#discount_percentage}}
+                        <br><small>Desc: {{discount_percentage}}%</small>
+                        {{/discount_percentage}}
+                    </td>
+                    <td class="item-qty">{{quantity}}</td>
+                    <td class="item-price">${{total_amount}}</td>
+                </tr>
+                {{/items}}
+            </tbody>
+        </table>
+        
+        <!-- Totales -->
+        <div class="totals">
+            <div class="total-line">
+                <span>Subtotal:</span>
+                <span>${{subtotal}}</span>
+            </div>
+            
+            {{#discount_amount}}
+            <div class="total-line">
+                <span>Descuento:</span>
+                <span>-${{discount_amount}}</span>
+            </div>
+            {{/discount_amount}}
+            
+            <div class="total-line">
+                <span>IVA (13%):</span>
+                <span>${{tax_amount}}</span>
+            </div>
+            
+            <div class="total-line grand-total">
+                <span>TOTAL:</span>
+                <span>${{total_amount}}</span>
+            </div>
+        </div>
+        
+        <!-- Información de pago -->
+        <div class="payment-info">
+            <strong>FORMA DE PAGO:</strong><br>
+            {{payment_method_name}}<br>
+            {{#payment_terms}}
+            Términos: {{payment_terms}}<br>
+            {{/payment_terms}}
+            
+            {{#is_cash_payment}}
+            Recibido: ${{paid_amount}}<br>
+            {{#change_amount}}
+            Cambio: ${{change_amount}}<br>
+            {{/change_amount}}
+            {{/is_cash_payment}}
+        </div>
+        
+        <!-- Código QR -->
+        {{#qr_code_data}}
+        <div class="qr-code">
+            <div id="qrcode" style="margin: 0 auto;"></div>
+            <div class="fiscal-info">
+                Verificar en:<br>
+                admin.factura.gob.sv
+            </div>
+        </div>
+        {{/qr_code_data}}
+        
+        <!-- Pie de página -->
+        <div class="footer">
+            {{#thank_you_message}}
+            <div style="font-weight: bold; margin-bottom: 10px;">
+                {{thank_you_message}}
+            </div>
+            {{/thank_you_message}}
+            
+            {{#footer_message}}
+            <div style="margin-bottom: 10px;">
+                {{footer_message}}
+            </div>
+            {{/footer_message}}
+            
+            <div class="fiscal-info">
+                Resolución DGI No. {{resolution_number}}<br>
+                Del {{resolution_date_from}} al {{resolution_date_to}}<br>
+                Rango autorizado: {{range_from}} - {{range_to}}<br>
+                <br>
+                "LA REPRODUCCIÓN DE ESTE DOCUMENTO<br>
+                CONSTITUYE UN DELITO"<br>
+                <br>
+                Procesado por: Sistema Facturación Electrónica<br>
+                {{print_date}} {{print_time}}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Script para generar código QR -->
+    {{#qr_code_data}}
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script>
+        QRCode.toCanvas(document.getElementById('qrcode'), '{{qr_code_data}}', {
+            width: 120,
+            height: 120,
+            margin: 1
+        }, function (error) {
+            if (error) console.error(error);
+        });
+    </script>
+    {{/qr_code_data}}
+</body>
+</html> 

@@ -1,0 +1,260 @@
+version: '3.8'
+
+services:
+  # Base de datos PostgreSQL
+  postgres:
+    image: postgres:15
+    container_name: facturacion_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: facturacion_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password123
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - facturacion_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis para cache y sesiones
+  redis:
+    image: redis:7-alpine
+    container_name: facturacion_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - facturacion_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Backend FastAPI
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: facturacion_backend
+    restart: unless-stopped
+    environment:
+      # Base de datos
+      POSTGRES_SERVER: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: facturacion_db
+      POSTGRES_PORT: 5432
+      
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      
+      # Configuración de la aplicación
+      SECRET_KEY: "facturacion-super-secret-key-2024"
+      ENVIRONMENT: development
+      DEBUG: "true"
+      
+      # Configuración de facturación electrónica
+      HACIENDA_ENVIRONMENT: test
+      HACIENDA_BASE_URL: "https://apitest.dtes.mh.gob.sv/fesv/recepciondte"
+      
+      # Configuración de impresión
+      PRINTER_ENABLED: "true"
+      TICKET_WIDTH: 80
+      
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./uploads:/app/uploads
+      - ./templates:/app/templates
+      - ./certificates:/app/certificates
+      - ./logs:/app/logs
+      - ./backups:/app/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - facturacion_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend POS React
+  pos-frontend:
+    build:
+      context: ./pos-frontend
+      dockerfile: Dockerfile
+    container_name: facturacion_pos
+    restart: unless-stopped
+    environment:
+      REACT_APP_API_URL: http://localhost:8000/api/v1
+      REACT_APP_WS_URL: ws://localhost:8000/ws
+      GENERATE_SOURCEMAP: "false"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./pos-frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - facturacion_network
+
+  # Panel de Administración
+  admin-panel:
+    build:
+      context: ./admin-panel
+      dockerfile: Dockerfile
+    container_name: facturacion_admin
+    restart: unless-stopped
+    environment:
+      REACT_APP_API_URL: http://localhost:8000/api/v1
+      REACT_APP_TITLE: "Administración - Facturación Electrónica"
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./admin-panel:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - facturacion_network
+
+  # Celery Worker para tareas asíncronas
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: facturacion_worker
+    restart: unless-stopped
+    command: celery -A app.worker worker --loglevel=info
+    environment:
+      # Usar las mismas variables que el backend
+      POSTGRES_SERVER: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: facturacion_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SECRET_KEY: "facturacion-super-secret-key-2024"
+      ENVIRONMENT: development
+    volumes:
+      - ./backend:/app
+      - ./uploads:/app/uploads
+      - ./templates:/app/templates
+      - ./certificates:/app/certificates
+      - ./logs:/app/logs
+    depends_on:
+      - postgres
+      - redis
+      - backend
+    networks:
+      - facturacion_network
+
+  # Flower para monitoreo de Celery
+  flower:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: facturacion_flower
+    restart: unless-stopped
+    command: celery -A app.worker flower
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - "5555:5555"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - redis
+      - celery-worker
+    networks:
+      - facturacion_network
+
+  # Nginx como reverse proxy
+  nginx:
+    image: nginx:alpine
+    container_name: facturacion_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+      - ./uploads:/var/www/uploads
+    depends_on:
+      - backend
+      - pos-frontend
+      - admin-panel
+    networks:
+      - facturacion_network
+
+  # Servicio de impresión (opcional)
+  print-server:
+    build:
+      context: ./printer-service
+      dockerfile: Dockerfile
+    container_name: facturacion_printer
+    restart: unless-stopped
+    environment:
+      API_URL: http://backend:8000/api/v1
+      PRINTER_INTERFACE: usb
+    ports:
+      - "8001:8001"
+    volumes:
+      - /dev:/dev  # Acceso a dispositivos USB
+    privileged: true  # Necesario para acceso a impresoras
+    depends_on:
+      - backend
+    networks:
+      - facturacion_network
+
+  # Backup automático
+  backup:
+    image: postgres:15
+    container_name: facturacion_backup
+    restart: "no"
+    environment:
+      PGPASSWORD: password123
+    volumes:
+      - ./backups:/backups
+      - ./scripts:/scripts
+    command: >
+      sh -c "
+        echo 'Configurando backup automático...'
+        echo '0 2 * * * pg_dump -h postgres -U postgres -d facturacion_db > /backups/backup_$$(date +\%Y\%m\%d_\%H\%M\%S).sql' > /var/spool/cron/crontabs/root
+        crond -f
+      "
+    depends_on:
+      - postgres
+    networks:
+      - facturacion_network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  facturacion_network:
+    driver: bridge 

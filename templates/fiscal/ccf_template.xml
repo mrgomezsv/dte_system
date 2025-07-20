@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dte:GTDocumento xmlns:dte="http://www.sat.gob.gt/dte/fel/0.2.0">
+  <dte:SAT ClaseDocumento="dte">
+    <dte:DTE ID="DatosCertificados">
+      <dte:DatosEmision ID="DatosEmision">
+        <dte:DatosGenerales CodigoMoneda="USD" FechaHoraEmision="{{issue_date}}" Tipo="{{document_type}}" NumeroAcceso="{{access_number}}" TipoPersoneria="J" />
+        
+        <!-- Información del Emisor -->
+        <dte:Emisor AfiliacionIVA="GEN" CodigoEstablecimiento="1" CorreoEmisor="{{company_email}}" NombreComercial="{{company_commercial_name}}" NombreEmisor="{{company_name}}" NITEmisor="{{company_nit}}" />
+        
+        <!-- Información del Receptor -->
+        <dte:Receptor CorreoReceptor="{{customer_email}}" IDReceptor="{{customer_nit}}" NombreReceptor="{{customer_name}}" TipoEspecial="{{customer_type}}" />
+        
+        <!-- Frase del Documento -->
+        <dte:Frases>
+          <dte:Frase CodigoEscenario="1" TipoFrase="1" />
+        </dte:Frases>
+        
+        <!-- Items de la Factura -->
+        <dte:Items>
+          {{#items}}
+          <dte:Item BienOServicio="B" NumeroLinea="{{line_number}}">
+            <dte:Cantidad>{{quantity}}</dte:Cantidad>
+            <dte:UnidadMedida>{{unit_measure}}</dte:UnidadMedida>
+            <dte:Descripcion>{{description}}</dte:Descripcion>
+            <dte:PrecioUnitario>{{unit_price}}</dte:PrecioUnitario>
+            <dte:Precio>{{line_total}}</dte:Precio>
+            <dte:Descuento>{{discount_amount}}</dte:Descuento>
+            
+            <!-- Impuestos -->
+            <dte:Impuestos>
+              <dte:Impuesto>
+                <dte:NombreCorto>IVA</dte:NombreCorto>
+                <dte:CodigoUnidadGravable>1</dte:CodigoUnidadGravable>
+                <dte:MontoGravable>{{taxable_amount}}</dte:MontoGravable>
+                <dte:MontoImpuesto>{{tax_amount}}</dte:MontoImpuesto>
+              </dte:Impuesto>
+            </dte:Impuestos>
+            
+            <dte:Total>{{item_total}}</dte:Total>
+          </dte:Item>
+          {{/items}}
+        </dte:Items>
+        
+        <!-- Totales del Documento -->
+        <dte:Totales>
+          <dte:TotalImpuestos>
+            <dte:TotalImpuesto NombreCorto="IVA" TotalMontoImpuesto="{{total_tax_amount}}" />
+          </dte:TotalImpuestos>
+          <dte:GranTotal>{{grand_total}}</dte:GranTotal>
+        </dte:Totales>
+        
+        <!-- Complementos adicionales -->
+        <dte:Complementos>
+          <dte:Complemento IDComplemento="{{uuid}}" NombreComplemento="FEFACE" URIComplemento="http://www.sat.gob.gt/face2/ComplementoFacturaEspecial/0.1.0">
+            <cfe:FacturaEspecial xmlns:cfe="http://www.sat.gob.gt/face2/ComplementoFacturaEspecial/0.1.0" Version="1">
+              <cfe:RegimenAntiguo>
+                <cfe:IvaEnSuspenso>{{iva_suspended}}</cfe:IvaEnSuspenso>
+              </cfe:RegimenAntiguo>
+            </cfe:FacturaEspecial>
+          </dte:Complemento>
+        </dte:Complementos>
+        
+      </dte:DatosEmision>
+      
+      <!-- Certificación del documento -->
+      <dte:Certificacion>
+        <dte:NITCertificador>{{certifier_nit}}</dte:NITCertificador>
+        <dte:NombreCertificador>{{certifier_name}}</dte:NombreCertificador>
+        <dte:FechaHoraCertificacion>{{certification_date}}</dte:FechaHoraCertificacion>
+        <dte:NumeroAutorizacion>{{authorization_number}}</dte:NumeroAutorizacion>
+      </dte:Certificacion>
+      
+    </dte:DTE>
+  </dte:SAT>
+</dte:GTDocumento> 
